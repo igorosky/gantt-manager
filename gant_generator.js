@@ -75,7 +75,17 @@ function markDates(nodes) {
     if (visited.has(node.id)) return;
     visited.add(node.id);
     let endDate = new Date(node.startDate);
-    endDate.setDate(endDate.getDate() + parseInt(node.properties['Duration']));
+    switch (node.properties['Time units']) {
+      case 'Days':
+        endDate.setDate(endDate.getDate() + parseInt(node.properties['Duration']));
+        break;
+      case 'Weeks':
+        endDate.setDate(endDate.getDate() + parseInt(node.properties['Duration']) * 7);
+        break;
+      case 'Months':
+        endDate.setMonth(endDate.getMonth() + parseInt(node.properties['Duration']));
+        break;
+    }
     node.interfaces['After'].other.forEach((toNode) => {
       if (toNode.startDate === undefined || toNode.startDate < endDate) {
         toNode.startDate = new Date(endDate);
@@ -91,9 +101,7 @@ function markDates(nodes) {
 }
 
 function generateMermaidGantt(nodes) {
-  let ans = ''
-  ans += `
-gantt
+  let ans = `gantt
   title Winter 2025/2026
   dateFormat  DD-MM-YYYY
   axisFormat %d-%m-%Y
@@ -118,13 +126,24 @@ gantt
         modifiers += 'done, ';
       }
     }
+    let timeUnits;
+    switch (node.properties['Time units']) {
+      case 'Days':
+        timeUnits = 'd';
+        break;
+      case 'Weeks':
+        timeUnits = 'w';
+        break;
+      case 'Months':
+        timeUnits = 'm';
+        break;
+    }
     if (node.properties['Critical'] === true || node.properties['Critical'] === 'true') {
       modifiers += 'crit, ';
     }
-    ans += `  ${node.properties['Task Name']} : ${modifiers}id_${node.id}, ${dateStr}, ${node.properties['Duration']}d\n`;
+    ans += `  ${node.properties['Task Name']} : ${modifiers}id_${node.id}, ${dateStr}, ${node.properties['Duration']}${timeUnits}\n`;
   });
   
-  // ans += '\n```\n';
   return ans;
 }
 

@@ -17,6 +17,16 @@
           "default": 1
         },
         {
+          "name": "Time units",
+          "type": "select",
+          "default": "Days",
+          "values": [
+            "Days",
+            "Weeks",
+            "Months"
+          ]
+        },
+        {
           "name": "Description",
           "type": "multiline",
           "default": ""
