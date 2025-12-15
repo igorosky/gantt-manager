@@ -1,0 +1,66 @@
+{
+  "version": "20250623.14",
+  "nodes": [
+    {
+      "name": "Task",
+      "properties": [
+        {
+          "name": "Task Name",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "name": "Duration",
+          "type": "integer",
+          "min": 1,
+          "max": 365,
+          "default": 1
+        },
+        {
+          "name": "Description",
+          "type": "multiline",
+          "default": ""
+        },
+        {
+          "name": "Is active",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "name": "Is Done",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "Before",
+          "direction": "input",
+          "maxConnectionsCount": -1
+        },
+
+        {
+          "name": "After",
+          "direction": "output",
+          "maxConnectionsCount": -1
+        }
+      ]
+    },
+    {
+      "name": "Start",
+      "properties": [
+        {
+          "name": "Start Date",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "After",
+          "direction": "output"
+        }
+      ]
+    }
+  ]
+}
