@@ -129,9 +129,6 @@
             const response = handleExternalRequest(data);
             sendPM(createJSONRPCResponse(data.id, response));
           } else {
-            // logJson('frontend-endpoint-responses', data);
-            console.log(data);
-            // console.log(generateGanttChart(data));
             renderMermaid(generateGanttChart(data)).then((svg) => {
               document.getElementById('frontend-endpoint-responses').innerHTML = svg;
             });
@@ -193,7 +190,6 @@
                     <button onclick="any_request()">Handle provided request</button>
                 </div>
                 <div class="io-container">
-                    <div>Responses</div>
                     <pre class="mermaid" id="frontend-endpoint-responses">
 
                     </pre>

@@ -22,12 +22,17 @@
           "default": ""
         },
         {
-          "name": "Is active",
-          "type": "bool",
-          "default": false
+          "name": "State",
+          "type": "select",
+          "default": "Open",
+          "values": [
+            "Open",
+            "In Progress",
+            "Completed"
+          ]
         },
         {
-          "name": "Is Done",
+          "name": "Critical",
           "type": "bool",
           "default": false
         }

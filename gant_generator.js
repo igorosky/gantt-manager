@@ -104,17 +104,24 @@ gantt
 `
 
   nodes.forEach((node) => {
-    if (node.lastBefore === undefined) {
-      const dateStr = node.startDate
-        .toISOString()
-        .split('T')[0]
-        .split('-')
-        .reverse()
-        .join('-');
-      ans += `  ${node.properties['Task Name']} : id_${node.id}, ${dateStr}, ${node.properties['Duration']}d\n`;
-    } else {
-      ans += `  ${node.properties['Task Name']} : id_${node.id}, after id_${node.lastBefore.id}, ${node.properties['Duration']}d\n`;
+    const dateStr = node.startDate
+      .toISOString()
+      .split('T')[0]
+      .split('-')
+      .reverse()
+      .join('-');
+    let modifiers = '';
+    if (node.properties['State'] != 'Open') {
+      if (node.properties['State'] == 'In Progress') {
+        modifiers += 'active, ';
+      } else if (node.properties['State'] == 'Completed') {
+        modifiers += 'done, ';
+      }
     }
+    if (node.properties['Critical'] === true || node.properties['Critical'] === 'true') {
+      modifiers += 'crit, ';
+    }
+    ans += `  ${node.properties['Task Name']} : ${modifiers}id_${node.id}, ${dateStr}, ${node.properties['Duration']}d\n`;
   });
   
   // ans += '\n```\n';
