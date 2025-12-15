@@ -105,9 +105,9 @@ function markDates(nodes) {
   return nodes;
 }
 
-function generateMermaidGantt(nodes) {
+function generateMermaidGantt(nodes, propeties) {
   let ans = `gantt
-  title Winter 2025/2026
+  title ${propeties.title || 'Gantt Chart'}
   dateFormat  DD-MM-YYYY
   axisFormat %d-%m-%Y
   tickInterval 1week
@@ -182,13 +182,11 @@ function checkNames(nodes) {
 }
 
 function checkDatesInStarts(nodes) {
-  console.log(nodes);
   return nodes.every((node) => {
     if (node.name !== 'Start') {
       return true;
     }
     const startDate = node.properties.filter((c) => c.name === 'Start Date');
-    console.log(startDate);
     if (startDate.length !== 1 || startDate[0].value === '') {
       return false;
     }
@@ -210,7 +208,7 @@ function checkIfAllNodesHaveStartDates(nodes) {
   return true;
 }
 
-function generateGanttChart(data) {
+function generateGanttChart(data, propeties) {
   if (!checkDatesInStarts(data.nodes)) {
     throw new Error('All Starts must have a start date.');
   }
@@ -221,15 +219,10 @@ function generateGanttChart(data) {
   if (detectCycles(graph)) {
     throw new Error('The graph contains cycles. Cannot generate Gantt chart.');
   }
-  console.log(`Generated graph with ${graph.length} nodes`);
-  console.log(graph);
   let sortedNodes = topologicalSort(graph);
-  console.log(`Generated graph with ${sortedNodes.length} nodes 2`);
   sortedNodes = markDates(sortedNodes);
   if (!checkIfAllNodesHaveStartDates(sortedNodes)) {
     throw new Error('Could not determine start dates for all tasks.');
   }
-  console.log(`Generated graph with ${sortedNodes.length} nodes 3`);
-  return generateMermaidGantt(sortedNodes);
+  return generateMermaidGantt(sortedNodes, propeties);
 }
-

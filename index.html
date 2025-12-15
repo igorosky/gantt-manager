@@ -83,10 +83,6 @@
         }
         let defaultSpecification;
 
-        const logJson = (containerId, content) => {
-          document.getElementById(containerId).innerHTML = JSON.stringify(content, null, 4);
-        };
-
         // Pipeline Manager communication
 
         let PM;
@@ -101,34 +97,36 @@
               sendPM({ method: "specification_change", params: { specification: defaultSpecification } });
               console.log(defaultSpecification);
             });
-
-          ['frontend-endpoint-responses', 'external-endpoint-requests']
-            .map((id) => document.getElementById(id))
-            .forEach((e) => {
-                e.addEventListener('focus', (ev) => ev.target.blur());
-                e.addEventListener('drop', (ev) => ev.preventDefault());
-            });
-          
         });
+        let id_ = 0;
         const sendPM = (data) => PM.contentWindow.postMessage(data);
         const createJSONRPCResponse = (id, response) => ({ jsonrpc: "2.0", id, result: response });
+
+        let latestGraphRequest;
+        let isLastGraphRequestMadeByUser = false;
+        let lastGraph;
 
         window.addEventListener('message', (event) => {
           const data = event.data;
           if (data.method !== undefined) {
             const response = handleExternalRequest(data);
             sendPM(createJSONRPCResponse(data.id, response));
-          } else if (data.result !== undefined && data.result.dataflow !== undefined && data.result.dataflow.graphs !== undefined) {
-            console.log('Received data from PM:', event);
+          } else {
             const target = document.getElementById('frontend-endpoint-responses');
-            try {
-              const mermaidMD = generateGanttChart(data.result.dataflow.graphs[0]);
-              renderMermaid(mermaidMD).then((svg) => {
-                target.innerHTML = svg;
-              });
-            } catch (error) {
-              console.log('Error generating Gantt chart:', error.message);
-              sendPM({ method: 'notification_send', params: { type: 'error', title: error.message, details: error.message } });
+            if (data.id === latestGraphRequest) {
+              try {
+                const mermaidMD = generateGanttChart(data.result.dataflow.graphs[0], { title: document.getElementById('title').value });
+                if (mermaidMD !== lastGraph) {
+                  lastGraph = mermaidMD;
+                  renderMermaid(mermaidMD).then((svg) => {
+                    target.innerHTML = svg;
+                  });
+                }
+              } catch (error) {
+                if (isLastGraphRequestMadeByUser) {
+                  sendPM({ method: 'notification_send', params: { type: 'error', title: error.message, details: error.message } });
+                }
+              }
             }
           }
         });
@@ -137,16 +135,16 @@
 
         const getInput = () => JSON.parse(document.getElementById('input').value);
 
-        const graph_get = () => sendPM({ method: 'graph_get' });
-        const specification_change = () => sendPM({ method: 'specification_change', params: { specification: getInput() } });
-        const graph_change = () => sendPM({ method: 'graph_change', params: { dataflow: getInput() } });
-        const any_request = () => sendPM(getInput());
+        const graph_get = () => {
+          latestGraphRequest = id_++;
+          sendPM({ id: latestGraphRequest, method: 'graph_get' })
+          isLastGraphRequestMadeByUser = true;
+        };
 
         // External requests
 
         const handleExternalRequest = (request) => {
           const { method } = request;
-          logJson('external-endpoint-requests', request)
 
           let response;
           switch (method) {
@@ -176,6 +174,13 @@
 
           return response;
         };
+
+        setInterval(() => {
+          if (document.getElementById('autorefresh').checked) {
+            graph_get();
+            isLastGraphRequestMadeByUser = false;
+          }
+        }, 2000);
     </script>
     <div class="wrapper">
         <iframe id="pm" src="/pipeline-manager"></iframe>
@@ -185,7 +190,7 @@
                   <button onclick="graph_get()">Refresh graph</button>
                   <input type="text" id="title" placeholder="Gantt title" />
                   <label><input type="checkbox" id="autorefresh" /> Autorefresh</label>
-                  <button onclick="graph_get()">More options</button>
+                  <button disabled>More options</button>
                 </div>
                 <div class="io-container">
                   <div id="frontend-endpoint-responses">
