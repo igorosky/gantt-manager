@@ -70,7 +70,7 @@
     </style>
 </head>
 <body>
-    <script src="gant_generator.js"></script>
+    <script src="gantt_generator.js"></script>
     <script src="./mermaid.min.js"></script>
     <script defer>
         mermaid.initialize({ startOnLoad: true });
@@ -95,7 +95,6 @@
               console.log('Default specification loaded.');
               defaultSpecification = data;
               sendPM({ method: "specification_change", params: { specification: defaultSpecification } });
-              console.log(defaultSpecification);
             });
         });
         let id_ = 0;
@@ -115,7 +114,7 @@
             const target = document.getElementById('frontend-endpoint-responses');
             if (data.id === latestGraphRequest) {
               try {
-                const mermaidMD = generateGanttChart(data.result.dataflow.graphs[0], { title: document.getElementById('title').value });
+                const mermaidMD = generateGanttChart(data.result.dataflow.graphs[0]);
                 if (mermaidMD !== lastGraph) {
                   lastGraph = mermaidMD;
                   renderMermaid(mermaidMD).then((svg) => {
@@ -188,9 +187,7 @@
             <div id="controls">
                 <div id="buttons">
                   <button onclick="graph_get()">Refresh graph</button>
-                  <input type="text" id="title" placeholder="Gantt title" />
                   <label><input type="checkbox" id="autorefresh" /> Autorefresh</label>
-                  <button disabled>More options</button>
                 </div>
                 <div class="io-container">
                   <div id="frontend-endpoint-responses">

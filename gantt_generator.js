@@ -143,15 +143,17 @@ function markDates(nodes) {
   return nodes;
 }
 
-function generateMermaidGantt(nodes, propeties) {
+function generateMermaidGantt(nodes, options) {
   let ans = `gantt
-  title ${propeties.title || 'Gantt Chart'}
+  title ${options.title}
   dateFormat  DD-MM-YYYY
-  axisFormat %d-%m-%Y
-  tickInterval 1week
-  weekday tuesday
-  
-`
+  axisFormat ${options.displayDateFormat}
+  tickInterval ${options.tickIntervalValue}${options.tickIntervalUnit}
+  todayMarker ${options.showTodayLine ? 'on' : 'off'}
+`;
+  if (options.tickIntervalUnit === 'week') {
+    ans += `weekday ${options.weekday}\n`;
+  }
 
   nodes.forEach((node) => {
     const dateStr = node.startDate
@@ -228,7 +230,56 @@ function checkIfAllNodesHaveStartDates(nodes) {
   return true;
 }
 
-function generateGanttChart(data, propeties) {
+function getOptions(nodes) {
+  const optionsArr = nodes.filter(n => n.name === 'Options');
+  let options = {
+    title: 'Gantt Chart',
+    displayDateFormat: '%d-%m-%Y',
+    tickIntervalValue: 1,
+    tickIntervalUnit: 'week',
+    weekday: 'Monday',
+    showTodayLine: false,
+  };
+  if (optionsArr.length === 0) {
+    return options;
+  }
+  optionsArr[0].properties.forEach((prop) => {
+    switch (prop.name) {
+      case 'Title':
+        options.title = prop.value;
+        break;
+      case 'Date Format on Axis':
+        options.displayDateFormat = prop.value;
+        break;
+      case 'Tick Interval Value':
+        options.tickIntervalValue = parseInt(prop.value);
+        break;
+      case 'Tick Interval Unit':
+        options.tickIntervalUnit = prop.value;
+        break;
+      case 'Weekday':
+        options.weekday = prop.value;
+        break;
+      case 'Show Today Line':
+        options.showTodayLine = prop.value === true || prop.value === 'true';
+        break;
+      default:
+        console.warn(`Unknown option property: ${prop.name}`);
+        break;
+    }
+  });
+  return options;
+}
+
+function generateGanttChart(data) {
+  if (data.nodes.filter(n => n.name === 'Start').length === 0) {
+    throw new Error('The graph must contain a Start node.');
+  }
+  if (data.nodes.filter(n => n.name === 'Options').length > 1) {
+    throw new Error('The graph must contain at most one Options node.');
+  }
+  const options = getOptions(data.nodes);
+  data.nodes = data.nodes.filter(n => n.name !== 'Options');
   let graph = generateGraph(data);
   if (!checkNames(graph)) {
     throw new Error('All tasks must have a name.');
@@ -241,5 +292,5 @@ function generateGanttChart(data, propeties) {
   if (!checkIfAllNodesHaveStartDates(sortedNodes)) {
     throw new Error('Could not determine start dates for all tasks.');
   }
-  return generateMermaidGantt(sortedNodes, propeties);
+  return generateMermaidGantt(sortedNodes, options);
 }
