@@ -156,12 +156,7 @@ function generateMermaidGantt(nodes, options) {
   }
 
   nodes.forEach((node) => {
-    const dateStr = node.startDate
-      .toISOString()
-      .split('T')[0]
-      .split('-')
-      .reverse()
-      .join('-');
+    const dateStr = `${node.startDate.getDate() < 10 ? '0' : ''}${node.startDate.getDate()}-${node.startDate.getMonth() < 9 ? '0' : ''}${node.startDate.getMonth() + 1}-${node.startDate.getFullYear()}`;
     let modifiers = '';
     if (node.properties['State'] != 'Open') {
       if (node.properties['State'] == 'In Progress') {
