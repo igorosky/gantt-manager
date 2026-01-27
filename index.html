@@ -76,9 +76,9 @@
         mermaid.initialize({ startOnLoad: true });
         async function renderMermaid(graphDefinition) {
           const id = 'mermaid-' + Date.now();
-    
+
           const { svg } = await mermaid.render(id, graphDefinition);
-    
+
           return svg;
         }
         let defaultSpecification;
@@ -140,6 +140,104 @@
           isLastGraphRequestMadeByUser = true;
         };
 
+        // Graph export functions
+
+        const export_graph_svg = () => {
+          const svgElement = document.querySelector('#frontend-endpoint-responses svg');
+          if (!svgElement) {
+            alert('The graph is not available to export. Generate the graph first.');
+            return;
+          }
+          const serializer = new XMLSerializer();
+          const svgString = serializer.serializeToString(svgElement);
+          const blob = new Blob([svgString], { type: 'image/svg+xml' });
+          const url = URL.createObjectURL(blob);
+
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'gantt_chart.svg';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        };
+
+        const export_graph_png = () => {
+          const svgElement = document.querySelector('#frontend-endpoint-responses svg');
+          if (!svgElement) {
+            alert('The graph is not available to export. Generate the graph first.');
+            return;
+          }
+
+          try {
+            // Get dimensions - prefer viewBox, then explicit attributes, then computed size
+            let width, height;
+            const viewBox = svgElement.getAttribute('viewBox');
+
+            if (viewBox) {
+              const viewBoxValues = viewBox.split(/[\s,]+/).map(parseFloat);
+              width = viewBoxValues[2];
+              height = viewBoxValues[3];
+            } else {
+              // Get the actual rendered size
+              const rect = svgElement.getBoundingClientRect();
+              width = rect.width;
+              height = rect.height;
+            }
+
+            // Fallback if dimensions are still invalid
+            if (!width || !height || width <= 0 || height <= 0) {
+              const bbox = svgElement.getBBox();
+              width = bbox.width || 800;
+              height = bbox.height || 600;
+            }
+
+            width = parseFloat(width) || 800;
+            height = parseFloat(height) || 600;
+
+            // Create canvas
+            const scale = 2;
+            const canvas = document.createElement('canvas');
+            canvas.width = width * scale;
+            canvas.height = height * scale;
+            const ctx = canvas.getContext('2d');
+
+            // Fill white background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Scale context for high DPI
+            ctx.scale(scale, scale);
+
+            // Create image from SVG
+            const svgString = new XMLSerializer().serializeToString(svgElement);
+            const img = new Image();
+
+            img.onload = function() {
+              // Draw at full size
+              ctx.drawImage(img, 0, 0, width, height);
+              canvas.toBlob(function(blob) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'gantt_chart.png';
+                link.click();
+                URL.revokeObjectURL(link.href);
+              });
+            };
+
+            img.onerror = function() {
+              alert('Error: Could not render SVG to image.');
+              console.error('Image load failed');
+            };
+
+            const blob = new Blob([svgString], { type: 'image/svg+xml' });
+            img.src = URL.createObjectURL(blob);
+          } catch (error) {
+            alert('Error exporting PNG: ' + error.message);
+            console.error(error);
+          }
+        };
+
         // External requests
 
         const handleExternalRequest = (request) => {
@@ -186,7 +284,9 @@
         <div>
             <div id="controls">
                 <div id="buttons">
-                  <button onclick="graph_get()">Refresh graph</button>
+                  <button onclick="graph_get()">Generate graph</button>
+                  <button onclick="export_graph_svg()">Download as SVG image</button>
+                  <button onclick="export_graph_png()">Download as PNG image</button>
                   <label><input type="checkbox" id="autorefresh" /> Autorefresh</label>
                 </div>
                 <div class="io-container">
