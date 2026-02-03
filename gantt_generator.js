@@ -74,39 +74,47 @@ function topologicalSort(nodes) {
   return sorted.reverse();
 }
 
+function getEndDate(node) {
+  let endDate = new Date(node.startDate);
+  switch (node.properties['Time units']) {
+    case 'Days':
+      endDate.setDate(endDate.getDate() + parseInt(node.properties['Duration']));
+      break;
+    case 'Weeks':
+      endDate.setDate(endDate.getDate() + parseInt(node.properties['Duration']) * 7);
+      break;
+    case 'Months':
+      let newMonth = endDate.getMonth() + parseInt(node.properties['Duration']);
+      while (newMonth > 11) {
+        newMonth -= 12;
+        endDate.setFullYear(endDate.getFullYear() + 1);
+      }
+      endDate.setMonth(newMonth);
+      break;
+  }
+  return endDate;
+}
+
 function markDates(nodes) {
-  let visited = new Set();
-  function visit(node) {
-    if (visited.has(node.id)) return;
-    visited.add(node.id);
-    let endDate = new Date(node.startDate);
-    switch (node.properties['Time units']) {
-      case 'Days':
-        endDate.setDate(endDate.getDate() + parseInt(node.properties['Duration']));
-        break;
-      case 'Weeks':
-        endDate.setDate(endDate.getDate() + parseInt(node.properties['Duration']) * 7);
-        break;
-      case 'Months':
-        let newMonth = endDate.getMonth() + parseInt(node.properties['Duration']);
-        while (newMonth > 11) {
-          newMonth -= 12;
-          endDate.setFullYear(endDate.getFullYear() + 1);
-        }
-        endDate.setMonth(newMonth);
-        break;
-    }
-    node.interfaces['After'].other.forEach((toNode) => {
-      if (toNode.startDate === undefined || toNode.startDate < endDate) {
-        toNode.startDate = new Date(endDate);
-        toNode.lastBefore = node;
+  // Process nodes in topological order (they should already be sorted)
+  // For each node, compute start date as max end date of all predecessors
+  nodes.forEach((node) => {
+    if (node.startDate !== undefined) return; // Already has a start date from Start node
+    
+    let maxEndDate = null;
+    node.interfaces['Before'].other.forEach((predecessor) => {
+      if (predecessor.startDate === undefined) return; // Predecessor not yet processed
+      const predEndDate = getEndDate(predecessor);
+      if (maxEndDate === null || predEndDate > maxEndDate) {
+        maxEndDate = predEndDate;
+        node.lastBefore = predecessor;
       }
     });
-    node.interfaces['After'].other.forEach(visit);
-  }
-  nodes
-    .filter((node) => node.startDate !== undefined)
-    .forEach(visit);
+    
+    if (maxEndDate !== null) {
+      node.startDate = new Date(maxEndDate);
+    }
+  });
 
   // Dates deduction
   function visitDeduce(node) {
