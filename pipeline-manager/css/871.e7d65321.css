@@ -473,6 +473,11 @@
   pointer-events: all;
 }
 
+.baklava-editor .node-container span {
+  margin-left:10%;
+  margin-right:10%;
+}
+
 .baklava-ignore-mouse * {
   pointer-events: none !important;
 }
@@ -499,14 +504,16 @@
   padding-left: 0.5em;
 }
 .baklava-node-interface.--input .__port {
-  left: -1.1em;
+  left: -0.1em;
+  scale: 3.0;
 }
 .baklava-node-interface.--output {
   text-align: right;
   padding-right: 0.5em;
 }
 .baklava-node-interface.--output .__port {
-  right: -1.1em;
+  right: -0.1em;
+  scale: 3.0;
 }
 
 .baklava-node-palette {
