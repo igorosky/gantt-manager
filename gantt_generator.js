@@ -185,12 +185,13 @@ function generateMermaidGantt(nodes, options) {
         timeUnits = 'M';
         break;
     }
-    if (node.properties['Critical'] === true || node.properties['Critical'] === 'true') {
+    // Use automatic critical path calculation if available, otherwise use manual checkbox
+    if (node.isCritical || node.properties['Critical'] === true || node.properties['Critical'] === 'true') {
       modifiers += 'crit, ';
     }
     ans += `  ${node.properties['Task Name']} : ${modifiers}id_${node.id}, ${dateStr}, ${node.properties['Duration']}${timeUnits}\n`;
   });
-  
+
   return ans;
 }
 
@@ -233,6 +234,113 @@ function checkIfAllNodesHaveStartDates(nodes) {
   return true;
 }
 
+function calculateCriticalPath(nodes) {
+  // Calculate earliest start (ES) and earliest finish (EF) - forward pass
+  nodes.forEach((node) => {
+    node.earliestStart = new Date(node.startDate);
+    node.earliestFinish = getEndDate(node);
+  });
+
+  // Calculate latest start (LS) and latest finish (LF) - backward pass
+  // First, find the project completion date (maximum EF)
+  let projectEndDate = null;
+  nodes.forEach((node) => {
+    if (projectEndDate === null || node.earliestFinish > projectEndDate) {
+      projectEndDate = new Date(node.earliestFinish);
+    }
+  });
+
+  // Initialize ONLY terminal nodes (no successors) with latest finish = project end date
+  nodes.forEach((node) => {
+    if (node.interfaces['After'].other.length === 0) {
+      node.latestFinish = new Date(projectEndDate);
+    }
+  });
+
+  // Build a proper reverse topological order (end to start)
+  const reverseTopoOrder = [];
+  const visited = new Set();
+
+  function buildReverseOrder(node) {
+    if (visited.has(node.id)) return;
+    visited.add(node.id);
+
+    // Visit all successors first (post-order DFS)
+    node.interfaces['After'].other.forEach(successor => {
+      buildReverseOrder(successor);
+    });
+
+    // Add this node after all its successors
+    reverseTopoOrder.push(node);
+  }
+
+  // Start DFS from nodes with no predecessors
+  nodes.filter(n => n.interfaces['Before'].other.length === 0)
+    .forEach(buildReverseOrder);
+
+  // Make sure ALL nodes are included (in case of disconnected components)
+  nodes.forEach(node => {
+    if (!visited.has(node.id)) {
+      buildReverseOrder(node);
+    }
+  });
+
+  // Process in reverse topological order (reverseTopoOrder is already end-to-start from post-order DFS)
+  reverseTopoOrder.forEach(node => {
+    // For nodes with successors, latestFinish = min(successor.latestStart)
+    if (node.interfaces['After'].other.length > 0) {
+      let minLatestStart = null;
+      node.interfaces['After'].other.forEach((successor) => {
+        if (successor.latestStart) {
+          if (minLatestStart === null || successor.latestStart < minLatestStart) {
+            minLatestStart = new Date(successor.latestStart);
+          }
+        }
+      });
+      if (minLatestStart !== null) {
+        node.latestFinish = minLatestStart;
+      }
+    }
+    // Terminal nodes already have latestFinish = projectEndDate
+
+    // Calculate latest start from latest finish
+    if (node.latestFinish) {
+      node.latestStart = new Date(node.latestFinish);
+      switch (node.properties['Time units']) {
+        case 'Days':
+          node.latestStart.setDate(node.latestStart.getDate() - parseInt(node.properties['Duration']));
+          break;
+        case 'Weeks':
+          node.latestStart.setDate(node.latestStart.getDate() - parseInt(node.properties['Duration']) * 7);
+          break;
+        case 'Months':
+          let newMonth = node.latestStart.getMonth() - parseInt(node.properties['Duration']);
+          while (newMonth < 0) {
+            newMonth += 12;
+            node.latestStart.setFullYear(node.latestStart.getFullYear() - 1);
+          }
+          node.latestStart.setMonth(newMonth);
+          break;
+      }
+    }
+  });
+
+  // Calculate slack (float) and mark critical tasks
+  nodes.forEach((node) => {
+    if (node.latestStart && node.earliestStart) {
+      // Calculate slack in milliseconds
+      const slack = node.latestStart.getTime() - node.earliestStart.getTime();
+      node.slack = slack;
+      // A task is on the critical path if it has zero (or near-zero) slack
+      node.isCritical = Math.abs(slack) < 1000; // within 1 second (accounting for floating point)
+    } else {
+      node.isCritical = false;
+    }
+  });
+
+  return nodes;
+}
+
 function getOptions(nodes) {
   const optionsArr = nodes.filter(n => n.name === 'Options');
   let options = {
@@ -242,6 +350,7 @@ function getOptions(nodes) {
     tickIntervalUnit: 'week',
     weekday: 'Monday',
     showTodayLine: false,
+    showCriticalPath: false,
   };
   if (optionsArr.length === 0) {
     return options;
@@ -265,6 +374,9 @@ function getOptions(nodes) {
         break;
       case 'Show Today Line':
         options.showTodayLine = prop.value === true || prop.value === 'true';
+        break;
+      case 'Show Critical Path':
+        options.showCriticalPath = prop.value === true || prop.value === 'true';
         break;
       default:
         console.warn(`Unknown option property: ${prop.name}`);
@@ -294,6 +406,9 @@ function generateGanttChart(data) {
   sortedNodes = markDates(sortedNodes);
   if (!checkIfAllNodesHaveStartDates(sortedNodes)) {
     throw new Error('Could not determine start dates for all tasks.');
+  }
+  if (options.showCriticalPath) {
+    sortedNodes = calculateCriticalPath(sortedNodes);
   }
   return generateMermaidGantt(sortedNodes, options);
 }

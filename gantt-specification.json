@@ -130,6 +130,11 @@
           "name": "Show Today Line",
           "type": "bool",
           "default": false
+        },
+        {
+          "name": "Show Critical Path",
+          "type": "bool",
+          "default": false
         }
       ]
     }
